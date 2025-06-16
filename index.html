@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>Catch！ Video - メインページ</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f5f5f5;
+      padding: 2rem;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .video-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+    }
+    .video-card {
+      background: white;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.1);
+    }
+    .video-card video {
+      width: 100%;
+      border-radius: 6px;
+      margin-bottom: 0.5rem;
+    }
+    .video-title {
+      font-weight: bold;
+      margin: 0.5rem 0;
+    }
+    .video-desc {
+      font-size: 0.9rem;
+      color: #666;
+    }
+    .play-button {
+      display: inline-block;
+      margin-top: 0.5rem;
+      padding: 0.4rem 0.8rem;
+      background: #007bff;
+      color: white;
+      border-radius: 4px;
+      text-decoration: none;
+    }
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+</head>
+<body>
+  <h1>📺 Catch！ Video - メインページ</h1>
+  <div class="video-list" id="videoList"></div>
+
+  <script>
+    // ✅ Firebase 設定（自分の環境に合わせて修正）
+    const firebaseConfig = {
+    apiKey: "AIzaSyCionIdr-4M3ZITUlSx8I5i8vmae-c-ldM",
+    authDomain: "catch--video.firebaseapp.com",
+    projectId: "catch--video",
+    storageBucket: "catch--video.firebasestorage.app",
+    messagingSenderId: "252815636201",
+    appId: "1:252815636201:web:d4da3b738a0e536211e278",
+    measurementId: "G-C73B0V1RLN"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const auth = firebase.auth();
+
+    // 動画一覧の取得
+    async function loadVideos() {
+      const videoList = document.getElementById("videoList");
+      videoList.innerHTML = "読み込み中...";
+
+      try {
+        const snapshot = await db.collection("videos").orderBy("createdAt", "desc").limit(50).get();
+        videoList.innerHTML = "";
+
+        snapshot.forEach(doc => {
+          const video = doc.data();
+          const card = document.createElement("div");
+          card.className = "video-card";
+          card.innerHTML = `
+            <video src="${video.videoUrl}" controls muted></video>
+            <div class="video-title">${video.title}</div>
+            <div class="video-desc">${video.description.slice(0, 50)}...</div>
+            <a class="play-button" href="video.html?id=${doc.id}">▶ 再生</a>
+          `;
+          videoList.appendChild(card);
+        });
+      } catch (err) {
+        console.error(err);
+        videoList.innerText = "動画の読み込みに失敗しました。";
+      }
+    }
+
+    // Firebase Auth 状態を監視して動画を読み込む
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        loadVideos();
+      } else {
+        window.location.href = "login.html"; // 未ログインならログインページへ
+      }
+    });
+  </script>
+</body>
+</html>
