@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>動画ページ | Catch！ Video</title>
+  <style>
+    body { font-family: sans-serif; padding: 1rem; background: #fafafa; }
+    h1 { font-size: 1.5rem; }
+    .video-container { max-width: 800px; margin: auto; }
+    video { width: 100%; border-radius: 8px; }
+    .meta { margin: 1rem 0; }
+    .comments { margin-top: 2rem; }
+    .comment-box textarea { width: 100%; padding: 0.5rem; border-radius: 4px; }
+    .comment-box button {
+      margin-top: 0.5rem;
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+    }
+    .comment-list { margin-top: 1rem; }
+    .comment { background: white; padding: 0.5rem; margin-bottom: 0.5rem; border-radius: 4px; box-shadow: 0 0 3px rgba(0,0,0,0.1); }
+    .channel-link { color: #007bff; text-decoration: underline; }
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+  <div class="video-container">
+    <video id="videoPlayer" controls></video>
+    <div class="meta">
+      <h1 id="title">読み込み中...</h1>
+      <div id="description"></div>
+      <div><strong>チャンネル:</strong> <a id="channelLink" class="channel-link" href="#">---</a></div>
+      <div id="viewsAndDate">再生回数 -- 回・--</div>
+    </div>
+
+    <div class="comments">
+      <h2>コメント</h2>
+      <div class="comment-box" id="commentBox" style="display:none;">
+        <textarea id="commentText" rows="3" placeholder="コメントを入力..."></textarea>
+        <button onclick="submitComment()">投稿する</button>
+      </div>
+      <div class="comment-list" id="commentList">読み込み中...</div>
+    </div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+    apiKey: "AIzaSyCionIdr-4M3ZITUlSx8I5i8vmae-c-ldM",
+    authDomain: "catch--video.firebaseapp.com",
+    projectId: "catch--video",
+    storageBucket: "catch--video.firebasestorage.app",
+    messagingSenderId: "252815636201",
+    appId: "1:252815636201:web:d4da3b738a0e536211e278",
+    measurementId: "G-C73B0V1RLN"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const auth = firebase.auth();
+
+    const videoId = new URLSearchParams(location.search).get("id");
+    let currentUser = null;
+
+    auth.onAuthStateChanged(user => {
+      currentUser = user;
+      if (user) {
+        document.getElementById("commentBox").style.display = "block";
+      }
+    });
+
+    async function loadVideo() {
+      const doc = await db.collection("videos").doc(videoId).get();
+      if (!doc.exists) {
+        alert("動画が見つかりません");
+        return;
+      }
+      const data = doc.data();
+      document.getElementById("videoPlayer").src = data.videoUrl;
+      document.getElementById("title").textContent = data.title;
+      document.getElementById("description").textContent = data.description;
+      document.getElementById("viewsAndDate").textContent = `再生回数 ${data.views || 0} 回・${new Date(data.createdAt?.toDate()).toLocaleDateString()}`;
+
+      const channelDoc = await db.collection("channels").doc(data.channelId).get();
+      if (channelDoc.exists) {
+        document.getElementById("channelLink").textContent = channelDoc.data().name;
+        document.getElementById("channelLink").href = `/channel.html?id=${channelDoc.id}`;
+      }
+
+      // 再生回数をカウントアップ
+      await db.collection("videos").doc(videoId).update({
+        views: (data.views || 0) + 1
+      });
+
+      loadComments();
+    }
+
+    async function loadComments() {
+      const container = document.getElementById("commentList");
+      container.innerHTML = "";
+      const q = await db.collection("videos").doc(videoId).collection("comments").orderBy("createdAt", "desc").limit(50).get();
+      q.forEach(doc => {
+        const c = doc.data();
+        const div = document.createElement("div");
+        div.className = "comment";
+        div.innerHTML = `<strong>${c.username || "匿名"}</strong><br>${c.text}`;
+        container.appendChild(div);
+      });
+      if (q.empty) container.innerHTML = "<p>コメントがありません。</p>";
+    }
+
+    async function submitComment() {
+      if (!currentUser) return alert("ログインしてください");
+      const text = document.getElementById("commentText").value.trim();
+      if (!text) return;
+      await db.collection("videos").doc(videoId).collection("comments").add({
+        uid: currentUser.uid,
+        username: currentUser.displayName || "匿名",
+        text,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      document.getElementById("commentText").value = "";
+      loadComments();
+    }
+
+    loadVideo();
+  </script>
+</body>
+</html>
