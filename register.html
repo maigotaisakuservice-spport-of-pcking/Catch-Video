@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>新規登録 - Catch！ Video</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      background: linear-gradient(to bottom right, #1a1a1a, #333);
+      color: #fff;
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+    h1 {
+      margin-bottom: 24px;
+    }
+    form {
+      background: #222;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.5);
+      width: 100%;
+      max-width: 360px;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      border-radius: 8px;
+      border: none;
+      background: #333;
+      color: white;
+      font-size: 16px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
+      background: #00c3ff;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      color: white;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    button:hover {
+      background: #0099cc;
+    }
+    .google-btn {
+      background: #fff;
+      color: #000;
+    }
+    .error {
+      color: #ff6b6b;
+      margin-top: 10px;
+      text-align: center;
+    }
+    .link {
+      margin-top: 12px;
+      text-align: center;
+    }
+    .link a {
+      color: #00c3ff;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Catch！ Video 新規登録</h1>
+  <form id="registerForm">
+    <input type="email" id="email" placeholder="メールアドレス" required />
+    <input type="password" id="password" placeholder="パスワード（6文字以上）" minlength="6" required />
+    <button type="submit">登録</button>
+    <button type="button" class="google-btn" id="googleRegister">Googleで登録</button>
+    <div class="error" id="errorMsg"></div>
+    <div class="link">
+      すでにアカウントをお持ちの方は <a href="login.html">ログイン</a>
+    </div>
+  </form>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+    const firebaseConfig = {
+    apiKey: "AIzaSyCionIdr-4M3ZITUlSx8I5i8vmae-c-ldM",
+    authDomain: "catch--video.firebaseapp.com",
+    projectId: "catch--video",
+    storageBucket: "catch--video.firebasestorage.app",
+    messagingSenderId: "252815636201",
+    appId: "1:252815636201:web:d4da3b738a0e536211e278",
+    measurementId: "G-C73B0V1RLN"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    const registerForm = document.getElementById("registerForm");
+    const errorMsg = document.getElementById("errorMsg");
+    const googleRegister = document.getElementById("googleRegister");
+
+    registerForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        sessionStorage.setItem("uid", user.uid);
+        location.href = "index.html"; // 登録成功後トップページへ
+      } catch (error) {
+        errorMsg.textContent = "登録に失敗しました：" + error.message;
+      }
+    });
+
+    googleRegister.addEventListener("click", async () => {
+      const provider = new GoogleAuthProvider();
+      try {
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+        sessionStorage.setItem("uid", user.uid);
+        location.href = "index.html";
+      } catch (error) {
+        errorMsg.textContent = "Google登録に失敗：" + error.message;
+      }
+    });
+  </script>
+</body>
+</html>
