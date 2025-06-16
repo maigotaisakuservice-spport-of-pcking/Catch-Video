@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>チャンネル管理 | Catch！ Video</title>
+  <style>
+    body { font-family: sans-serif; background: #f2f2f2; padding: 2rem; }
+    h1 { text-align: center; }
+    .section { margin-bottom: 2rem; }
+    .input-group { margin: 0.5rem 0; }
+    label { display: block; margin-bottom: 0.2rem; }
+    input, textarea {
+      width: 100%;
+      padding: 0.5rem;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background: #28a745;
+      color: white;
+      padding: 0.6rem 1rem;
+      border: none;
+      border-radius: 4px;
+      margin-top: 1rem;
+    }
+    .video-list {
+      display: grid;
+      gap: 1rem;
+    }
+    .video-card {
+      background: white;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 0 6px rgba(0,0,0,0.1);
+    }
+    .video-card video {
+      width: 100%;
+      max-height: 200px;
+      object-fit: cover;
+      margin-bottom: 0.5rem;
+    }
+    .video-card .actions {
+      margin-top: 0.5rem;
+    }
+    .delete-btn {
+      background: #dc3545;
+      margin-left: 1rem;
+    }
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+  <h1>チャンネル管理</h1>
+
+  <div class="section">
+    <h2>チャンネル情報</h2>
+    <div class="input-group">
+      <label>チャンネル名</label>
+      <input type="text" id="channelName">
+    </div>
+    <div class="input-group">
+      <label>説明</label>
+      <textarea id="channelDescription" rows="3"></textarea>
+    </div>
+    <button onclick="saveChannel()">保存する</button>
+  </div>
+
+  <div class="section">
+    <h2>投稿した動画</h2>
+    <div class="video-list" id="videoList">読み込み中...</div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_AUTH_DOMAIN",
+      projectId: "YOUR_PROJECT_ID"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const auth = firebase.auth();
+
+    let currentUid = null;
+    let currentChannelId = null;
+
+    auth.onAuthStateChanged(async user => {
+      if (!user) {
+        alert("ログインが必要です");
+        location.href = "/login.html";
+        return;
+      }
+      currentUid = user.uid;
+
+      // 自分のチャンネル取得
+      const q = await db.collection("channels").where("ownerUid", "==", currentUid).limit(1).get();
+      if (q.empty) {
+        // 新しいチャンネル作成
+        const newDoc = await db.collection("channels").add({
+          name: "新しいチャンネル",
+          description: "",
+          ownerUid: currentUid,
+        });
+        currentChannelId = newDoc.id;
+        document.getElementById("channelName").value = "新しいチャンネル";
+        document.getElementById("channelDescription").value = "";
+      } else {
+        const doc = q.docs[0];
+        currentChannelId = doc.id;
+        const data = doc.data();
+        document.getElementById("channelName").value = data.name;
+        document.getElementById("channelDescription").value = data.description;
+      }
+
+      loadMyVideos();
+    });
+
+    async function saveChannel() {
+      if (!currentChannelId) return;
+      await db.collection("channels").doc(currentChannelId).update({
+        name: document.getElementById("channelName").value,
+        description: document.getElementById("channelDescription").value
+      });
+      alert("チャンネル情報を保存しました");
+    }
+
+    async function loadMyVideos() {
+      const list = document.getElementById("videoList");
+      list.innerHTML = "";
+      const q = await db.collection("videos")
+        .where("channelId", "==", currentChannelId)
+        .orderBy("createdAt", "desc")
+        .limit(50)
+        .get();
+
+      q.forEach(doc => {
+        const video = doc.data();
+        const card = document.createElement("div");
+        card.className = "video-card";
+        card.innerHTML = `
+          <video src="${video.videoUrl}" muted controls></video>
+          <div><strong>${video.title}</strong></div>
+          <div class="actions">
+            <a href="video-edit.html?id=${doc.id}">編集</a>
+            <button class="delete-btn" onclick="deleteVideo('${doc.id}')">削除</button>
+          </div>
+        `;
+        list.appendChild(card);
+      });
+
+      if (q.empty) {
+        list.innerHTML = "<p>まだ動画がありません。</p>";
+      }
+    }
+
+    async function deleteVideo(id) {
+      if (!confirm("本当に削除しますか？")) return;
+      await db.collection("videos").doc(id).delete();
+      loadMyVideos();
+    }
+  </script>
+</body>
+</html>
