@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>動画アップロード | Catch! Video</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; background: #f9f9f9; }
+    .container { background: white; padding: 2rem; border-radius: 8px; max-width: 600px; margin: auto; box-shadow: 0 0 10px #ccc; }
+    input, textarea, button { width: 100%; margin: 0.5rem 0; padding: 0.75rem; border: 1px solid #ccc; border-radius: 4px; }
+    progress { width: 100%; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h2>🎥 動画をアップロード</h2>
+    <input type="text" id="title" placeholder="動画タイトル" required />
+    <textarea id="description" placeholder="動画の説明" rows="4"></textarea>
+    <input type="file" id="videoInput" accept="video/*" />
+    <progress id="progressBar" value="0" max="100" style="display:none;"></progress>
+    <button onclick="uploadVideo()">アップロード</button>
+    <p id="status"></p>
+  </div>
+
+  <script>
+    // ✅ Firebase 設定
+    const firebaseConfig = {
+    apiKey: "AIzaSyCionIdr-4M3ZITUlSx8I5i8vmae-c-ldM",
+    authDomain: "catch--video.firebaseapp.com",
+    projectId: "catch--video",
+    storageBucket: "catch--video.firebasestorage.app",
+    messagingSenderId: "252815636201",
+    appId: "1:252815636201:web:d4da3b738a0e536211e278",
+    measurementId: "G-C73B0V1RLN"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const auth = firebase.auth();
+
+    async function uploadVideo() {
+      const title = document.getElementById("title").value;
+      const description = document.getElementById("description").value;
+      const file = document.getElementById("videoInput").files[0];
+      const status = document.getElementById("status");
+      const progressBar = document.getElementById("progressBar");
+
+      if (!file || !title) {
+        status.innerText = "タイトルと動画ファイルは必須です。";
+        return;
+      }
+
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("upload_preset", "catchvideo");
+
+        progressBar.style.display = "block";
+
+        const response = await axios.post(
+          "https://api.cloudinary.com/v1_1/diavopk3r/video/upload",
+          formData,
+          {
+            onUploadProgress: (e) => {
+              const percent = Math.round((e.loaded * 100) / e.total);
+              progressBar.value = percent;
+            }
+          }
+        );
+
+        const videoUrl = response.data.secure_url;
+        const user = auth.currentUser;
+        if (!user) throw new Error("ログインが必要です");
+
+        const videoData = {
+          title,
+          description,
+          videoUrl,
+          userId: user.uid,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        await db.collection("videos").add(videoData);
+        status.innerText = "アップロード完了！";
+        progressBar.style.display = "none";
+      } catch (err) {
+        console.error(err);
+        status.innerText = "アップロードに失敗しました。";
+        progressBar.style.display = "none";
+      }
+    }
+  </script>
+</body>
+</html>
