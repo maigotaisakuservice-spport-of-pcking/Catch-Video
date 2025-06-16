@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>プレミアム会員コード入力 - Catch！ Video</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      background: linear-gradient(to bottom right, #1a1a1a, #333);
+      color: #fff;
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+    h1 {
+      margin-bottom: 24px;
+    }
+    form {
+      background: #222;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.5);
+      width: 100%;
+      max-width: 360px;
+      text-align: center;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      border-radius: 8px;
+      border: none;
+      background: #333;
+      color: white;
+      font-size: 16px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
+      background: #00c3ff;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      color: white;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    button:hover {
+      background: #0099cc;
+    }
+    .message {
+      margin-top: 12px;
+      font-weight: bold;
+    }
+    .error {
+      color: #ff6b6b;
+    }
+    .success {
+      color: #6bff88;
+    }
+  </style>
+</head>
+<body>
+  <h1>プレミアム会員コード入力</h1>
+  <form id="premiumForm">
+    <input type="text" id="code" placeholder="コードを入力してください" required maxlength="16" />
+    <button type="submit">認証する</button>
+    <div class="message" id="msg"></div>
+  </form>
+
+  <script>
+    const premiumForm = document.getElementById("premiumForm");
+    const msg = document.getElementById("msg");
+
+    // プレミアムコードのサンプル（実運用はサーバー側検証必須）
+    const validCodes = ["CATCH2025PREM", "VIPACCESS123", "PREMIUMKEY456"];
+
+    premiumForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const inputCode = document.getElementById("code").value.trim().toUpperCase();
+      if (validCodes.includes(inputCode)) {
+        msg.textContent = "認証成功！プレミアム会員になりました。";
+        msg.className = "message success";
+        // ローカルストレージなどに保存（例）
+        localStorage.setItem("isPremium", "true");
+        // プレミアムフラグをユーザーデータに連携する処理はバックエンドで実装予定
+      } else {
+        msg.textContent = "無効なコードです。もう一度お試しください。";
+        msg.className = "message error";
+      }
+    });
+  </script>
+</body>
+</html>
