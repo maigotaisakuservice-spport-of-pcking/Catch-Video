@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Catch！ Video - 動画一覧</title>
+<style>
+  body {
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    background: #121212;
+    color: #eee;
+    margin: 0;
+    padding: 0 1rem;
+  }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 0;
+    border-bottom: 1px solid #333;
+  }
+  h1 {
+    margin: 0;
+    font-weight: 700;
+  }
+  #langSwitch {
+    cursor: pointer;
+    color: #00bcd4;
+    font-weight: 600;
+  }
+  #searchForm {
+    margin: 1rem 0;
+    display: flex;
+    gap: 0.5rem;
+  }
+  #searchInput {
+    flex-grow: 1;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    border: none;
+    font-size: 1rem;
+  }
+  #searchBtn {
+    background: #00bcd4;
+    border: none;
+    padding: 0 1.5rem;
+    border-radius: 8px;
+    color: #121212;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  #videoList {
+    display: grid;
+    grid-template-columns: repeat(auto-fill,minmax(280px,1fr));
+    gap: 1rem;
+    margin-bottom: 3rem;
+  }
+  .videoCard {
+    background: #1e1e1e;
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: 0 0 8px #00bcd4aa;
+    display: flex;
+    flex-direction: column;
+  }
+  .thumbnail {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    background: #333;
+  }
+  .videoInfo {
+    padding: 0.75rem 1rem;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  .title {
+    font-weight: 700;
+    font-size: 1.1rem;
+    margin: 0 0 0.25rem 0;
+    color: #00e5ff;
+  }
+  .meta {
+    font-size: 0.85rem;
+    color: #aaa;
+    flex-grow: 1;
+  }
+  .premiumBadge {
+    background: #ff9800;
+    color: #121212;
+    font-weight: 700;
+    font-size: 0.75rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 8px;
+    align-self: flex-start;
+    margin-top: 0.5rem;
+  }
+  #message {
+    text-align: center;
+    margin-top: 1rem;
+    color: #ff4444;
+  }
+  #loginStatus {
+    font-size: 0.9rem;
+    color: #aaa;
+  }
+  #logoutBtn {
+    background: #f44336;
+    border: none;
+    color: white;
+    font-weight: 600;
+    padding: 0.4rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-left: 1rem;
+  }
+</style>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+
+</head>
+<body>
+<header>
+  <h1 data-i18n="title">Catch！ Video</h1>
+  <div>
+    <span id="loginStatus" data-i18n="not_logged_in">未ログイン</span>
+    <button id="logoutBtn" style="display:none;" data-i18n="logout">ログアウト</button>
+    <span id="langSwitch" style="margin-left:1rem;">EN</span>
+  </div>
+</header>
+
+<section>
+  <form id="searchForm" aria-label="動画検索フォーム">
+    <input id="searchInput" type="search" placeholder="キーワードで検索..." aria-label="検索キーワード" />
+    <button id="searchBtn" type="submit" data-i18n="search">検索</button>
+  </form>
+
+  <div id="videoList" aria-live="polite" aria-atomic="true" role="region"></div>
+  <div id="message"></div>
+</section>
+
+<script>
+  // --- Firebase初期化 ---
+  const firebaseConfig = {
+    apiKey: "AIzaSyCionIdr-4M3ZITUlSx8I5i8vmae-c-ldM",
+    authDomain: "catch--video.firebaseapp.com",
+    projectId: "catch--video",
+    storageBucket: "catch--video.firebasestorage.app",
+    messagingSenderId: "252815636201",
+    appId: "1:252815636201:web:d4da3b738a0e536211e278",
+    measurementId: "G-C73B0V1RLN"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+
+  // --- i18n 言語辞書 ---
+  const dictionaries = {
+    ja: {
+      title: "Catch！ Video",
+      not_logged_in: "未ログイン",
+      logout: "ログアウト",
+      search: "検索",
+      no_videos: "動画が見つかりません。",
+      loading: "読み込み中...",
+      premium_badge: "プレミアム",
+      play_video: "動画を再生",
+    },
+    en: {
+      title: "Catch! Video",
+      not_logged_in: "Not logged in",
+      logout: "Logout",
+      search: "Search",
+      no_videos: "No videos found.",
+      loading: "Loading...",
+      premium_badge: "Premium",
+      play_video: "Play Video",
+    }
+  };
+  let currentLang = "ja";
+
+  // --- DOM Elements ---
+  const videoList = document.getElementById("videoList");
+  const message = document.getElementById("message");
+  const loginStatus = document.getElementById("loginStatus");
+  const logoutBtn = document.getElementById("logoutBtn");
+  const langSwitch = document.getElementById("langSwitch");
+  const searchForm = document.getElementById("searchForm");
+  const searchInput = document.getElementById("searchInput");
+
+  // --- UIテキスト更新 ---
+  function updateText() {
+    document.querySelectorAll("[data-i18n]").forEach(el => {
+      const key = el.getAttribute("data-i18n");
+      el.textContent = dictionaries[currentLang][key] || key;
+    });
+    searchInput.placeholder = currentLang === "ja" ? "キーワードで検索..." : "Search by keyword...";
+  }
+
+  // --- 言語切替 ---
+  langSwitch.addEventListener("click", () => {
+    currentLang = currentLang === "ja" ? "en" : "ja";
+    langSwitch.textContent = currentLang === "ja" ? "EN" : "日本語";
+    updateText();
+    renderVideos(currentVideos); // 再描画
+  });
+
+  // --- ログイン状態 ---
+  let currentUser = null;
+  let isPremium = false; // プレミアムフラグ（APIから取得で制御可能）
+
+  auth.onAuthStateChanged(async (user) => {
+    currentUser = user;
+    if (user) {
+      loginStatus.textContent = user.email;
+      logoutBtn.style.display = "inline-block";
+      // TODO: プレミアム判定API呼び出ししてisPremium更新
+      isPremium = await checkPremiumStatus(user);
+    } else {
+      loginStatus.textContent = dictionaries[currentLang].not_logged_in;
+      logoutBtn.style.display = "none";
+      isPremium = false;
+    }
+    renderVideos(currentVideos);
+  });
+
+  logoutBtn.onclick = () => {
+    auth.signOut();
+  };
+
+  // --- プレミアム判定API（仮実装） ---
+  async function checkPremiumStatus(user) {
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch("https://catchvideo.pcdaimaou.workers.dev/api/user/premium-status", {
+        headers: { Authorization: "Bearer " + token }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.isPremium === true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
+  // --- 動画API呼び出し ---
+  let currentVideos = [];
+  async function fetchVideos(query = "") {
+    message.textContent = dictionaries[currentLang].loading;
+    try {
+      const url = new URL("https://catchvideo.pcdaimaou.workers.dev/api/videos");
+      if (query) url.searchParams.append("q", query);
+      const res = await fetch(url.toString());
+      if (!res.ok) throw new Error("Failed to fetch videos");
+      const data = await res.json();
+      currentVideos = data.videos || [];
+      if(currentVideos.length === 0) {
+        message.textContent = dictionaries[currentLang].no_videos;
+      } else {
+        message.textContent = "";
+      }
+      renderVideos(currentVideos);
+    } catch (e) {
+      message.textContent = e.message;
+      currentVideos = [];
+      renderVideos([]);
+    }
+  }
+
+  // --- 動画カード作成 ---
+  function renderVideos(videos) {
+    videoList.innerHTML = "";
+    if (!videos.length) return;
+    videos.forEach(v => {
+      // プレミアム動画かつ非プレミアムユーザーは360pに制限（または視聴不可）
+      const canPlayFullQuality = isPremium || !v.isPremium;
+      const displayQuality = canPlayFullQuality ? v.maxQuality : "360p";
+      const premiumBadge = v.isPremium ? `<div class="premiumBadge">${dictionaries[currentLang].premium_badge}</div>` : "";
+
+      const videoCard = document.createElement("div");
+      videoCard.className = "videoCard";
+      videoCard.tabIndex = 0;
+      videoCard.setAttribute("role", "button");
+      videoCard.setAttribute("aria-label", `${v.title} - ${dictionaries[currentLang].play_video}`);
+
+      videoCard.innerHTML = `
+        <img src="${v.thumbnailUrl}" alt="${v.title} サムネイル" class="thumbnail" />
+        <div class="videoInfo">
+          <h3 class="title">${v.title}</h3>
+          <div class="meta">${v.uploaderName} ・ ${v.duration} ・ ${displayQuality}</div>
+          ${premiumBadge}
+        </div>
+      `;
+
+      videoCard.onclick = () => {
+        // 動画再生ページへ遷移（例）
+        window.location.href = `/video.html?id=${encodeURIComponent(v.id)}`;
+      };
+      videoCard.onkeypress = (e) => {
+        if(e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          videoCard.click();
+        }
+      };
+      videoList.appendChild(videoCard);
+    });
+  }
+
+  // --- 検索フォーム処理 ---
+  searchForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const q = searchInput.value.trim();
+    fetchVideos(q);
+  });
+
+  // 初期表示
+  updateText();
+  fetchVideos();
+
+</script>
+</body>
+</html>
