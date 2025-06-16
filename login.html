@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>ログイン - Catch！ Video</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      background: linear-gradient(to bottom right, #1a1a1a, #333);
+      color: #fff;
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+    h1 {
+      margin-bottom: 24px;
+    }
+    form {
+      background: #222;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.5);
+      width: 100%;
+      max-width: 360px;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      border-radius: 8px;
+      border: none;
+      background: #333;
+      color: white;
+      font-size: 16px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
+      background: #00c3ff;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      color: white;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    button:hover {
+      background: #0099cc;
+    }
+    .google-btn {
+      background: #fff;
+      color: #000;
+    }
+    .error {
+      color: #ff6b6b;
+      margin-top: 10px;
+      text-align: center;
+    }
+    .link {
+      margin-top: 12px;
+      text-align: center;
+    }
+    .link a {
+      color: #00c3ff;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Catch！ Video ログイン</h1>
+  <form id="loginForm">
+    <input type="email" id="email" placeholder="メールアドレス" required />
+    <input type="password" id="password" placeholder="パスワード" required />
+    <button type="submit">ログイン</button>
+    <button type="button" class="google-btn" id="googleLogin">Googleでログイン</button>
+    <div class="error" id="errorMsg"></div>
+    <div class="link">
+      アカウントをお持ちでない方は <a href="register.html">新規登録</a>
+    </div>
+  </form>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+    const firebaseConfig = {
+    apiKey: "AIzaSyCionIdr-4M3ZITUlSx8I5i8vmae-c-ldM",
+    authDomain: "catch--video.firebaseapp.com",
+    projectId: "catch--video",
+    storageBucket: "catch--video.firebasestorage.app",
+    messagingSenderId: "252815636201",
+    appId: "1:252815636201:web:d4da3b738a0e536211e278",
+    measurementId: "G-C73B0V1RLN"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    const loginForm = document.getElementById("loginForm");
+    const errorMsg = document.getElementById("errorMsg");
+    const googleLogin = document.getElementById("googleLogin");
+
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      try {
+        const result = await signInWithEmailAndPassword(auth, email, password);
+        const user = result.user;
+        // ログイン成功時
+        sessionStorage.setItem("uid", user.uid);
+        location.href = "index.html"; // トップページへ
+      } catch (error) {
+        errorMsg.textContent = "ログインに失敗しました：" + error.message;
+      }
+    });
+
+    googleLogin.addEventListener("click", async () => {
+      const provider = new GoogleAuthProvider();
+      try {
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+        sessionStorage.setItem("uid", user.uid);
+        location.href = "index.html";
+      } catch (error) {
+        errorMsg.textContent = "Googleログインに失敗：" + error.message;
+      }
+    });
+  </script>
+</body>
+</html>
